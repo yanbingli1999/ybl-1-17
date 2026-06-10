@@ -1,6 +1,6 @@
 import { useGameStore } from '@/store/useGameStore'
-import { getMedicine } from '@/data/gameData'
-import { CheckCircle, XCircle, ArrowRight, Pill, AlertCircle, Coins } from 'lucide-react'
+import { getMedicine, getCaseSource } from '@/data/gameData'
+import { CheckCircle, XCircle, ArrowRight, Pill, AlertCircle, Coins, TrendingUp } from 'lucide-react'
 
 export default function DiagnosisResult() {
   const diagnosisResult = useGameStore(s => s.diagnosisResult)
@@ -19,6 +19,7 @@ export default function DiagnosisResult() {
 
   const usedMed = diagnosisResult.medicineUsed ? getMedicine(diagnosisResult.medicineUsed) : null
   const correctMed = diagnosisResult.correctMedicine ? getMedicine(diagnosisResult.correctMedicine) : null
+  const sourceConfig = getCaseSource(diagnosisResult.source)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -35,12 +36,31 @@ export default function DiagnosisResult() {
               </h2>
               <p className="text-sm text-gray-300 mb-3">{diagnosisResult.message}</p>
               <div className="bg-green-900/20 rounded-lg p-3 border border-green-800/20 space-y-2">
+                {sourceConfig && (
+                  <div className="flex items-center justify-center gap-1.5 text-[11px] text-green-400">
+                    <span>{sourceConfig.icon}</span>
+                    <span>{sourceConfig.name}</span>
+                    <span className="inline-flex items-center gap-0.5 bg-yellow-900/30 text-yellow-400 px-1.5 py-0.5 rounded">
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      ×{diagnosisResult.multiplier}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-2xl">⬡</span>
                   <span className={`font-display text-2xl ${diagnosisResult.coinsEarned >= 0 ? 'text-green-300' : 'text-red-300'}`}>
                     {diagnosisResult.coinsEarned >= 0 ? '+' : ''}{diagnosisResult.coinsEarned}
                   </span>
                 </div>
+                {diagnosisResult.multiplier > 1 && (
+                  <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
+                    <span>基础 {diagnosisResult.baseCoins} ⬡</span>
+                    <span>×</span>
+                    <span className="text-yellow-400">{diagnosisResult.multiplier}</span>
+                    <span>=</span>
+                    <span className="text-green-400">{diagnosisResult.baseCoins * diagnosisResult.multiplier} ⬡</span>
+                  </div>
+                )}
                 {diagnosisResult.medicineCost > 0 && (
                   <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
                     <span>收入 {diagnosisResult.coinsEarned + diagnosisResult.medicineCost} ⬡</span>
@@ -81,6 +101,16 @@ export default function DiagnosisResult() {
               </h2>
               <p className="text-sm text-gray-300 mb-3">{diagnosisResult.message}</p>
               <div className="bg-gray-800/60 rounded-lg p-3 border border-gray-700/30 space-y-2">
+                {sourceConfig && (
+                  <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
+                    <span>{sourceConfig.icon}</span>
+                    <span>{sourceConfig.name}</span>
+                    <span className="inline-flex items-center gap-0.5 bg-yellow-900/30 text-yellow-400 px-1.5 py-0.5 rounded">
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      ×{diagnosisResult.multiplier}
+                    </span>
+                  </div>
+                )}
                 {diagnosisResult.errorType === 'action' && (
                   <div className="flex items-center justify-center gap-2 text-xs">
                     <span className="text-red-400">{actionLabels[diagnosisResult.actionTaken]}</span>
@@ -98,6 +128,15 @@ export default function DiagnosisResult() {
                       <span className="text-green-400">{correctMed.name}</span>
                     </div>
                     <p className="text-[10px] text-gray-500">药品用错了</p>
+                  </div>
+                )}
+                {diagnosisResult.multiplier > 1 && (
+                  <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
+                    <span>基础罚款 {diagnosisResult.baseCoins} ⬡</span>
+                    <span>×</span>
+                    <span className="text-yellow-400">{diagnosisResult.multiplier}</span>
+                    <span>=</span>
+                    <span className="text-red-400">{diagnosisResult.baseCoins * diagnosisResult.multiplier} ⬡</span>
                   </div>
                 )}
                 <div className="flex items-center justify-center gap-1 text-[10px] text-red-400 pt-1 border-t border-gray-700/50">

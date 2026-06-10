@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store/useGameStore'
-import { getBreed, getSymptomsForDisease, getDisease, getSymptom } from '@/data/gameData'
+import { getBreed, getSymptomsForDisease, getDisease, getSymptom, getCaseSource } from '@/data/gameData'
 import { AlertTriangle, Clock, ChevronRight } from 'lucide-react'
 
 export default function CaseQueue() {
@@ -26,6 +26,14 @@ export default function CaseQueue() {
           const symptomPreview = getSymptomsForDisease(c.diseaseId)
             .slice(0, 1)
             .map(sid => getSymptom(sid))[0]
+          const sourceConfig = getCaseSource(c.source)
+
+          const sourceColorMap: Record<string, string> = {
+            cyan: 'text-cyan-400 bg-cyan-900/30',
+            red: 'text-red-400 bg-red-900/30',
+            purple: 'text-purple-400 bg-purple-900/30',
+          }
+          const sourceColor = sourceColorMap[sourceConfig?.color || 'cyan']
 
           return (
             <button
@@ -63,7 +71,13 @@ export default function CaseQueue() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-cyan-400 transition-colors" />
               </div>
-              <div className="flex items-center gap-2 mt-1.5 pl-2">
+              <div className="flex items-center gap-2 mt-1.5 pl-2 flex-wrap">
+                {sourceConfig && (
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] ${sourceColor} px-1.5 py-0.5 rounded`}>
+                    <span>{sourceConfig.icon}</span>
+                    {sourceConfig.name}
+                  </span>
+                )}
                 {c.urgency === 'high' && (
                   <span className="inline-flex items-center gap-0.5 text-[10px] text-red-400 bg-red-900/30 px-1.5 py-0.5 rounded">
                     <AlertTriangle className="w-2.5 h-2.5" />紧急

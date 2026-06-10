@@ -7,12 +7,14 @@ import {
   type DiagnosisResult,
   type ActionType,
   type AccidentType,
+  type CaseSource,
   initialEquipment,
   generatePetCase,
   generateInitialCases,
   generateTestCases,
   getDisease,
   getMedicine,
+  getCaseSource,
 } from '@/data/gameData'
 
 interface GameState {
@@ -26,6 +28,7 @@ interface GameState {
   actionCooldowns: Record<ActionType, number>
   selectedMedicineId: string | null
   showMedicineSelector: boolean
+  showSourceSelector: boolean
   pendingAction: 'medicate' | 'inject' | 'feed' | null
 
   selectCase: (id: string) => void
@@ -40,7 +43,9 @@ interface GameState {
   repairEquipment: (id: string) => void
   dismissResult: () => void
   dismissAccident: () => void
-  generateNewCase: () => void
+  generateNewCase: (source?: CaseSource) => void
+  openSourceSelector: () => void
+  closeSourceSelector: () => void
   loadTestCases: () => void
   resetGame: () => void
 }
@@ -56,20 +61,24 @@ const initialPlayer: Player = {
 
 const expPerLevel = 100
 
-function getCoinsForUrgency(urgency: PetCase['urgency']): number {
+function getCoinsForUrgency(urgency: PetCase['urgency'], multiplier: number = 1): number {
+  let base: number
   switch (urgency) {
-    case 'low': return 30
-    case 'medium': return 50
-    case 'high': return 80
+    case 'low': base = 30; break
+    case 'medium': base = 50; break
+    case 'high': base = 80; break
   }
+  return Math.floor(base * multiplier)
 }
 
-function getPenaltyForAccident(urgency: PetCase['urgency']): number {
+function getPenaltyForAccident(urgency: PetCase['urgency'], multiplier: number = 1): number {
+  let base: number
   switch (urgency) {
-    case 'low': return 20
-    case 'medium': return 35
-    case 'high': return 60
+    case 'low': base = 20; break
+    case 'medium': base = 35; break
+    case 'high': base = 60; break
   }
+  return Math.floor(base * multiplier)
 }
 
 function getActionLabel(action: ActionType): string {
@@ -99,6 +108,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   selectedMedicineId: null,
   showMedicineSelector: false,
+  showSourceSelector: false,
   pendingAction: null,
 
   selectCase: (id: string) => {
@@ -160,6 +170,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const disease = getDisease(activeCase.diseaseId)
       const itemType = action === 'feed' ? '食物' : '药品'
+      const sourceConfig = getCaseSource(activeCase.source)
       const result: DiagnosisResult = {
         success: false,
         diseaseName: disease?.name || '',
@@ -168,11 +179,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         medicineUsed: id,
         correctMedicine: disease?.medicineId || null,
         coinsEarned: 0,
+        baseCoins: 0,
         medicineCost: medicine.cost,
         accidentType: null,
         damagedEquipment: null,
         message: `星币不足！${medicine.name} 需要 ${medicine.cost} ⬡，你只有 ${state.player.coins} ⬡`,
         errorType: 'funds',
+        source: activeCase.source,
+        multiplier: sourceConfig?.rewardMultiplier || 1,
       }
 
       set({
@@ -200,6 +214,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const disease = getDisease(activeCase.diseaseId)
     if (!disease) return
 
+    const sourceConfig = getCaseSource(activeCase.source)
+    const multiplier = sourceConfig?.rewardMultiplier || 1
+
     const requiredEquip = state.equipment.find(e => e.requiredAction === action)
     if (requiredEquip?.status !== 'normal') return
 
@@ -216,8 +233,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const isCorrect = actionCorrect && medicineCorrect
 
     if (isCorrect) {
-      const coinsEarned = getCoinsForUrgency(activeCase.urgency)
-      const expGain = activeCase.urgency === 'high' ? 30 : activeCase.urgency === 'medium' ? 20 : 10
+      const baseCoins = getCoinsForUrgency(activeCase.urgency)
+      const coinsEarned = getCoinsForUrgency(activeCase.urgency, multiplier)
+      const expGain = Math.floor((activeCase.urgency === 'high' ? 30 : activeCase.urgency === 'medium' ? 20 : 10) * multiplier)
       const netCoins = coinsEarned - medicineCost
       const newExp = state.player.exp + expGain
       const levelUp = newExp >= expPerLevel
@@ -230,6 +248,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const itemType = action === 'feed' ? '食物' : action === 'inject' ? '注射剂' : '药品'
       let message = `诊断正确！${activeCase.petName} 的「${disease.name}」已治愈！`
+      if (multiplier > 1) {
+        message += `（${sourceConfig?.name} ×${multiplier}）`
+      }
       if (medicineCost > 0) {
         message += `（扣除${itemType}费 ${medicineCost} ⬡）`
       }
@@ -242,11 +263,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         medicineUsed: medicineId || null,
         correctMedicine: disease.medicineId,
         coinsEarned: netCoins,
+        baseCoins,
         medicineCost,
         accidentType: null,
         damagedEquipment: null,
         message,
         errorType: null,
+        source: activeCase.source,
+        multiplier,
       }
 
       set({
@@ -266,7 +290,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         pendingAction: null,
       })
     } else {
-      const penalty = getPenaltyForAccident(activeCase.urgency)
+      const baseCoins = getPenaltyForAccident(activeCase.urgency)
+      const penalty = getPenaltyForAccident(activeCase.urgency, multiplier)
       const totalDeduction = penalty + medicineCost
       const damagedEquipId = disease.accidentType === 'bite'
         ? requiredEquip?.id || null
@@ -286,13 +311,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       const itemType = action === 'feed' ? '食物' : action === 'inject' ? '注射剂' : '药品'
       if (errorType === 'action') {
         message = `误诊！${activeCase.petName} 患的是「${disease.name}」，应该${getActionLabel(disease.correctAction)}而不是${getActionLabel(action)}！`
+        if (multiplier > 1) {
+          message += `（${sourceConfig?.name} ×${multiplier}）`
+        }
         if (medicineCost > 0) {
           message += `（扣除${itemType}费 ${medicineCost} ⬡）`
         }
       } else if (errorType === 'medicine') {
         const correctMed = disease.medicineId ? getMedicine(disease.medicineId) : null
         const usedMed = medicineId ? getMedicine(medicineId) : null
-        message = `用错${itemType}了！${activeCase.petName} 患的是「${disease.name}」，应该用「${correctMed?.name || '正确物品'}」而不是「${usedMed?.name || '未知物品'}」！（扣除${itemType}费 ${medicineCost} ⬡）`
+        message = `用错${itemType}了！${activeCase.petName} 患的是「${disease.name}」，应该用「${correctMed?.name || '正确物品'}」而不是「${usedMed?.name || '未知物品'}」！`
+        if (multiplier > 1) {
+          message += `（${sourceConfig?.name} ×${multiplier}）`
+        }
+        message += `（扣除${itemType}费 ${medicineCost} ⬡）`
       }
 
       const result: DiagnosisResult = {
@@ -303,11 +335,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         medicineUsed: medicineId || null,
         correctMedicine: disease.medicineId,
         coinsEarned: -totalDeduction,
+        baseCoins,
         medicineCost,
         accidentType: disease.accidentType,
         damagedEquipment: damagedEquipId,
         message,
         errorType,
+        source: activeCase.source,
+        multiplier,
       }
 
       set({
@@ -349,7 +384,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get()
     const remainingCases = state.cases.filter(c => c.status !== 'cured' && c.status !== 'accident')
     while (remainingCases.length < 4) {
-      remainingCases.push(generatePetCase())
+      remainingCases.push(generatePetCase('outpatient'))
     }
 
     set({
@@ -364,7 +399,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get()
     const remainingCases = state.cases.filter(c => c.status !== 'cured' && c.status !== 'accident')
     while (remainingCases.length < 4) {
-      remainingCases.push(generatePetCase())
+      remainingCases.push(generatePetCase('outpatient'))
     }
 
     set({
@@ -376,10 +411,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
 
-  generateNewCase: () => {
+  generateNewCase: (source: CaseSource = 'outpatient') => {
     const state = get()
-    const newCase = generatePetCase()
-    set({ cases: [...state.cases, newCase] })
+    const sourceConfig = getCaseSource(source)
+    if (!sourceConfig) return
+    if (state.player.coins < sourceConfig.receptionFee) return
+
+    const newCase = generatePetCase(source)
+    set({
+      cases: [...state.cases, newCase],
+      player: {
+        ...state.player,
+        coins: state.player.coins - sourceConfig.receptionFee,
+      },
+      showSourceSelector: false,
+    })
+  },
+
+  openSourceSelector: () => {
+    set({ showSourceSelector: true })
+  },
+
+  closeSourceSelector: () => {
+    set({ showSourceSelector: false })
   },
 
   loadTestCases: () => {
@@ -389,7 +443,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       gamePhase: 'idle',
       accidentType: null,
       diagnosisResult: null,
+      actionCooldowns: {
+        examine: 0,
+        medicate: 0,
+        inject: 0,
+        feed: 0,
+        isolate: 0,
+      },
       showMedicineSelector: false,
+      showSourceSelector: false,
       selectedMedicineId: null,
       pendingAction: null,
     })
@@ -412,6 +474,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         isolate: 0,
       },
       showMedicineSelector: false,
+      showSourceSelector: false,
       selectedMedicineId: null,
       pendingAction: null,
     })

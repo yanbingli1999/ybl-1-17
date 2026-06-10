@@ -47,6 +47,7 @@ export interface PetCase {
   urgency: 'low' | 'medium' | 'high'
   status: 'waiting' | 'diagnosing' | 'treating' | 'cured' | 'accident'
   examined: boolean
+  source: CaseSource
 }
 
 export interface Player {
@@ -61,6 +62,19 @@ export interface Player {
 export type ActionType = 'examine' | 'medicate' | 'inject' | 'feed' | 'isolate'
 export type AccidentType = 'split' | 'float' | 'bite'
 export type GamePhase = 'idle' | 'diagnosing' | 'treating' | 'accident' | 'result'
+export type CaseSource = 'outpatient' | 'emergency' | 'consultation'
+
+export interface CaseSourceConfig {
+  id: CaseSource
+  name: string
+  description: string
+  receptionFee: number
+  urgencyRange: PetCase['urgency'][]
+  rewardMultiplier: number
+  interferenceChance: number
+  color: string
+  icon: string
+}
 
 export interface DiagnosisResult {
   success: boolean
@@ -70,11 +84,14 @@ export interface DiagnosisResult {
   medicineUsed: string | null
   correctMedicine: string | null
   coinsEarned: number
+  baseCoins: number
   medicineCost: number
   accidentType: AccidentType | null
   damagedEquipment: string | null
   message: string
   errorType: 'action' | 'medicine' | 'funds' | null
+  source: CaseSource
+  multiplier: number
 }
 
 export const breeds: Breed[] = [
@@ -156,20 +173,60 @@ export function getMedicine(id: string): Medicine | undefined {
   return medicines.find(m => m.id === id)
 }
 
+export const caseSources: CaseSourceConfig[] = [
+  {
+    id: 'outpatient',
+    name: '普通门诊',
+    description: '常规病例，奖励适中，干扰较少',
+    receptionFee: 10,
+    urgencyRange: ['low', 'medium'],
+    rewardMultiplier: 1.0,
+    interferenceChance: 0.2,
+    color: 'cyan',
+    icon: '🏥',
+  },
+  {
+    id: 'emergency',
+    name: '急诊通道',
+    description: '紧急病例，高奖励高风险，干扰较多',
+    receptionFee: 25,
+    urgencyRange: ['medium', 'high'],
+    rewardMultiplier: 1.8,
+    interferenceChance: 0.5,
+    color: 'red',
+    icon: '🚑',
+  },
+  {
+    id: 'consultation',
+    name: '疑难会诊',
+    description: '复杂病例，最高奖励，干扰症状很多',
+    receptionFee: 40,
+    urgencyRange: ['medium', 'high'],
+    rewardMultiplier: 2.5,
+    interferenceChance: 0.8,
+    color: 'purple',
+    icon: '🔬',
+  },
+]
+
+export function getCaseSource(id: CaseSource): CaseSourceConfig | undefined {
+  return caseSources.find(s => s.id === id)
+}
+
 let caseCounter = 0
 
-export function generatePetCase(): PetCase {
+export function generatePetCase(source: CaseSource = 'outpatient'): PetCase {
   caseCounter++
+  const sourceConfig = getCaseSource(source) || caseSources[0]
   const disease = diseases[Math.floor(Math.random() * diseases.length)]
   const breed = breeds[Math.floor(Math.random() * breeds.length)]
   const name = petNames[Math.floor(Math.random() * petNames.length)]
-  const urgencyLevels: PetCase['urgency'][] = ['low', 'medium', 'high']
-  const urgency = urgencyLevels[Math.floor(Math.random() * urgencyLevels.length)]
+  const urgency = sourceConfig.urgencyRange[Math.floor(Math.random() * sourceConfig.urgencyRange.length)]
   const symptomIds = getSymptomsForDisease(disease.id)
   const extraSymptoms = symptoms
     .filter(s => !symptomIds.includes(s.id))
     .sort(() => Math.random() - 0.5)
-    .slice(0, Math.floor(Math.random() * 2))
+    .slice(0, Math.floor(Math.random() * 2) + (Math.random() < sourceConfig.interferenceChance ? 1 : 0))
     .map(s => s.id)
 
   return {
@@ -181,11 +238,12 @@ export function generatePetCase(): PetCase {
     urgency,
     status: 'waiting',
     examined: false,
+    source,
   }
 }
 
 export function generateInitialCases(count: number): PetCase[] {
-  return Array.from({ length: count }, () => generatePetCase())
+  return Array.from({ length: count }, () => generatePetCase('outpatient'))
 }
 
 export function generateTestCases(): PetCase[] {
@@ -200,6 +258,7 @@ export function generateTestCases(): PetCase[] {
       urgency: 'medium',
       status: 'waiting',
       examined: false,
+      source: 'outpatient',
     },
     {
       id: `test_float_${Date.now()}_${caseCounter - 2}`,
@@ -210,6 +269,7 @@ export function generateTestCases(): PetCase[] {
       urgency: 'medium',
       status: 'waiting',
       examined: false,
+      source: 'emergency',
     },
     {
       id: `test_shadow_${Date.now()}_${caseCounter - 1}`,
@@ -220,6 +280,7 @@ export function generateTestCases(): PetCase[] {
       urgency: 'medium',
       status: 'waiting',
       examined: false,
+      source: 'consultation',
     },
     {
       id: `test_chomp_${Date.now()}_${caseCounter}`,
@@ -230,6 +291,7 @@ export function generateTestCases(): PetCase[] {
       urgency: 'medium',
       status: 'waiting',
       examined: false,
+      source: 'outpatient',
     },
   ]
 }

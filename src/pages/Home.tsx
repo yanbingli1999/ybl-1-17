@@ -5,19 +5,27 @@ import AccidentOverlay from '@/components/AccidentOverlay'
 import EquipmentPanel from '@/components/EquipmentPanel'
 import PlayerProgress from '@/components/PlayerProgress'
 import DiagnosisResult from '@/components/DiagnosisResult'
+import SourceSelector from '@/components/SourceSelector'
 import { useGameStore } from '@/store/useGameStore'
-import { getBreed } from '@/data/gameData'
-import { Cross, Zap, FlaskConical } from 'lucide-react'
+import { getBreed, getCaseSource } from '@/data/gameData'
+import { Cross, Target, FlaskConical } from 'lucide-react'
 
 export default function Home() {
   const activeCaseId = useGameStore(s => s.activeCaseId)
   const cases = useGameStore(s => s.cases)
-  const generateNewCase = useGameStore(s => s.generateNewCase)
+  const openSourceSelector = useGameStore(s => s.openSourceSelector)
   const loadTestCases = useGameStore(s => s.loadTestCases)
   const resetGame = useGameStore(s => s.resetGame)
 
   const activeCase = cases.find(c => c.id === activeCaseId)
   const breed = activeCase ? getBreed(activeCase.breedId) : null
+  const sourceConfig = activeCase ? getCaseSource(activeCase.source) : null
+
+  const sourceBadgeColor: Record<string, string> = {
+    cyan: 'bg-cyan-900/40 text-cyan-300 border-cyan-700/30',
+    red: 'bg-red-900/40 text-red-300 border-red-700/30',
+    purple: 'bg-purple-900/40 text-purple-300 border-purple-700/30',
+  }
 
   return (
     <div className="h-screen w-screen bg-deep-space text-gray-100 overflow-hidden flex flex-col">
@@ -46,11 +54,11 @@ export default function Home() {
             测试病例
           </button>
           <button
-            onClick={generateNewCase}
+            onClick={openSourceSelector}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-900/30 border border-cyan-700/30 text-cyan-400 text-xs hover:bg-cyan-900/50 transition-colors"
           >
-            <Zap className="w-3 h-3" />
-            新病例
+            <Target className="w-3 h-3" />
+            定向接诊
           </button>
           <button
             onClick={resetGame}
@@ -74,9 +82,17 @@ export default function Home() {
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-3xl">{breed?.emoji}</span>
                     <div>
-                      <h2 className="font-display text-lg text-cyan-200 tracking-wide">
-                        {activeCase.petName} — {breed?.name}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-display text-lg text-cyan-200 tracking-wide">
+                          {activeCase.petName} — {breed?.name}
+                        </h2>
+                        {sourceConfig && (
+                          <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded border ${sourceBadgeColor[sourceConfig.color]}`}>
+                            <span>{sourceConfig.icon}</span>
+                            {sourceConfig.name}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500">病例 #{activeCase.id.slice(-6)}</p>
                     </div>
                   </div>
@@ -118,6 +134,7 @@ export default function Home() {
 
       <AccidentOverlay />
       <DiagnosisResult />
+      <SourceSelector />
     </div>
   )
 }

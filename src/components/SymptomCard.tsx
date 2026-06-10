@@ -1,6 +1,6 @@
 import { useGameStore } from '@/store/useGameStore'
-import { getBreed, getSymptom, getDisease, getSymptomsForDisease } from '@/data/gameData'
-import { Activity, Scan } from 'lucide-react'
+import { getBreed, getSymptom, getDisease, getSymptomsForDisease, getCaseSource } from '@/data/gameData'
+import { Activity, Scan, TrendingUp } from 'lucide-react'
 
 export default function SymptomCard() {
   const activeCaseId = useGameStore(s => s.activeCaseId)
@@ -22,6 +22,14 @@ export default function SymptomCard() {
   const disease = getDisease(activeCase.diseaseId)
   const caseSymptoms = activeCase.symptomIds.map(sid => getSymptom(sid)).filter(Boolean)
   const diseaseSymptomIds = getSymptomsForDisease(activeCase.diseaseId)
+  const sourceConfig = getCaseSource(activeCase.source)
+
+  const sourceBadgeMap: Record<string, string> = {
+    cyan: 'bg-cyan-900/50 text-cyan-300',
+    red: 'bg-red-900/50 text-red-300',
+    purple: 'bg-purple-900/50 text-purple-300',
+  }
+  const sourceBadgeColor = sourceBadgeMap[sourceConfig?.color || 'cyan']
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-cyan-800/30 bg-gray-900/60 backdrop-blur-sm">
@@ -37,14 +45,28 @@ export default function SymptomCard() {
               <p className="text-xs text-gray-500">{breed?.name}</p>
             </div>
           </div>
-          <div className={`
-            px-2 py-1 rounded text-xs font-medium
-            ${activeCase.urgency === 'high' ? 'bg-red-900/50 text-red-300' :
-              activeCase.urgency === 'medium' ? 'bg-yellow-900/50 text-yellow-300' :
-              'bg-green-900/50 text-green-300'}
-          `}>
-            {activeCase.urgency === 'high' ? '⚠ 紧急' :
-             activeCase.urgency === 'medium' ? '◉ 一般' : '✦ 轻微'}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {sourceConfig && (
+              <span className={`px-2 py-1 rounded text-xs font-medium ${sourceBadgeColor}`}>
+                <span className="mr-0.5">{sourceConfig.icon}</span>
+                {sourceConfig.name}
+              </span>
+            )}
+            {sourceConfig && sourceConfig.rewardMultiplier > 1 && (
+              <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-900/50 text-yellow-300 inline-flex items-center gap-0.5">
+                <TrendingUp className="w-3 h-3" />
+                ×{sourceConfig.rewardMultiplier}
+              </span>
+            )}
+            <span className={`
+              px-2 py-1 rounded text-xs font-medium
+              ${activeCase.urgency === 'high' ? 'bg-red-900/50 text-red-300' :
+                activeCase.urgency === 'medium' ? 'bg-yellow-900/50 text-yellow-300' :
+                'bg-green-900/50 text-green-300'}
+            `}>
+              {activeCase.urgency === 'high' ? '⚠ 紧急' :
+               activeCase.urgency === 'medium' ? '◉ 一般' : '✦ 轻微'}
+            </span>
           </div>
         </div>
 
