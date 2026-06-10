@@ -58,7 +58,7 @@ export default function DiagnosisResult() {
                     <span>×</span>
                     <span className="text-yellow-400">{diagnosisResult.multiplier}</span>
                     <span>=</span>
-                    <span className="text-green-400">{diagnosisResult.baseCoins * diagnosisResult.multiplier} ⬡</span>
+                    <span className="text-green-400">{Math.floor(diagnosisResult.baseCoins * diagnosisResult.multiplier)} ⬡</span>
                   </div>
                 )}
                 {diagnosisResult.medicineCost > 0 && (
@@ -136,7 +136,7 @@ export default function DiagnosisResult() {
                     <span>×</span>
                     <span className="text-yellow-400">{diagnosisResult.multiplier}</span>
                     <span>=</span>
-                    <span className="text-red-400">{diagnosisResult.baseCoins * diagnosisResult.multiplier} ⬡</span>
+                    <span className="text-red-400">{Math.floor(diagnosisResult.baseCoins * diagnosisResult.multiplier)} ⬡</span>
                   </div>
                 )}
                 <div className="flex items-center justify-center gap-1 text-[10px] text-red-400 pt-1 border-t border-gray-700/50">

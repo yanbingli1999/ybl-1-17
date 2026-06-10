@@ -383,8 +383,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   dismissResult: () => {
     const state = get()
     const remainingCases = state.cases.filter(c => c.status !== 'cured' && c.status !== 'accident')
-    while (remainingCases.length < 4) {
+    const outpatientConfig = getCaseSource('outpatient')
+    let coins = state.player.coins
+    while (remainingCases.length < 4 && outpatientConfig && coins >= outpatientConfig.receptionFee) {
       remainingCases.push(generatePetCase('outpatient'))
+      coins -= outpatientConfig.receptionFee
     }
 
     set({
@@ -392,14 +395,21 @@ export const useGameStore = create<GameState>((set, get) => ({
       gamePhase: 'idle',
       diagnosisResult: null,
       cases: remainingCases,
+      player: {
+        ...state.player,
+        coins,
+      },
     })
   },
 
   dismissAccident: () => {
     const state = get()
     const remainingCases = state.cases.filter(c => c.status !== 'cured' && c.status !== 'accident')
-    while (remainingCases.length < 4) {
+    const outpatientConfig = getCaseSource('outpatient')
+    let coins = state.player.coins
+    while (remainingCases.length < 4 && outpatientConfig && coins >= outpatientConfig.receptionFee) {
       remainingCases.push(generatePetCase('outpatient'))
+      coins -= outpatientConfig.receptionFee
     }
 
     set({
@@ -408,6 +418,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       accidentType: null,
       diagnosisResult: null,
       cases: remainingCases,
+      player: {
+        ...state.player,
+        coins,
+      },
     })
   },
 
